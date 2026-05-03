@@ -1,0 +1,12 @@
+{
+  "name": "taskflow",
+  "version": "1.0.0",
+  "description": "TaskFlow - Project Management App",
+  "scripts": {
+    "start": "node backend/server.js",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build": "cd frontend && npm install && npm run build",
+    "install:all": "cd backend && npm install && cd ../frontend && npm install"
+  }
+}
