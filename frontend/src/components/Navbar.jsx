@@ -1,5 +1,5 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, FolderKanban, LogOut } from 'lucide-react';
+import { LayoutDashboard, FolderKanban, Users, LogOut } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
 
@@ -30,6 +30,11 @@ export default function Navbar() {
           <NavLink to="/projects" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
             <FolderKanban size={16} /> Projects
           </NavLink>
+          {user?.role === 'Admin' && (
+            <NavLink to="/users" className={({ isActive }) => `nav-link${isActive ? ' active' : ''}`}>
+              <Users size={16} /> Team
+            </NavLink>
+          )}
         </div>
 
         <div className="nav-right">

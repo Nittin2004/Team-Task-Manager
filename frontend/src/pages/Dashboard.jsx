@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { CheckCircle2, Clock, AlertCircle, LayoutDashboard, Calendar } from 'lucide-react';
+import { CheckCircle2, Clock, AlertCircle, LayoutDashboard } from 'lucide-react';
 import API from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
-
-const statusClass = { 'To Do': 'status-todo', 'In Progress': 'status-progress', 'Done': 'status-done' };
-const priorityClass = { 'High': 'priority-high', 'Medium': 'priority-medium', 'Low': 'priority-low' };
+import StatCard from '../components/StatCard';
+import TaskCard from '../components/TaskCard';
+import ProjectCard from '../components/ProjectCard';
+import EmptyState from '../components/EmptyState';
 
 function isOverdue(dueDate, status) {
   if (!dueDate || status === 'Done') return false;
@@ -48,7 +49,6 @@ export default function Dashboard() {
     }
   };
 
-  const todo = tasks.filter((t) => t.status === 'To Do').length;
   const inProgress = tasks.filter((t) => t.status === 'In Progress').length;
   const done = tasks.filter((t) => t.status === 'Done').length;
   const overdue = tasks.filter((t) => isOverdue(t.dueDate, t.status)).length;
@@ -69,26 +69,10 @@ export default function Dashboard() {
       </div>
 
       <div className="stats-grid">
-        <div className="stat-card purple">
-          <div className="stat-icon purple"><LayoutDashboard size={20} /></div>
-          <div className="stat-value">{tasks.length}</div>
-          <div className="stat-label">Total Tasks</div>
-        </div>
-        <div className="stat-card yellow">
-          <div className="stat-icon yellow"><Clock size={20} /></div>
-          <div className="stat-value">{inProgress}</div>
-          <div className="stat-label">In Progress</div>
-        </div>
-        <div className="stat-card green">
-          <div className="stat-icon green"><CheckCircle2 size={20} /></div>
-          <div className="stat-value">{done}</div>
-          <div className="stat-label">Completed</div>
-        </div>
-        <div className="stat-card red">
-          <div className="stat-icon red"><AlertCircle size={20} /></div>
-          <div className="stat-value">{overdue}</div>
-          <div className="stat-label">Overdue</div>
-        </div>
+        <StatCard icon={LayoutDashboard} value={tasks.length} label="Total Tasks" variant="purple" />
+        <StatCard icon={Clock} value={inProgress} label="In Progress" variant="yellow" />
+        <StatCard icon={CheckCircle2} value={done} label="Completed" variant="green" />
+        <StatCard icon={AlertCircle} value={overdue} label="Overdue" variant="red" />
       </div>
 
       <div className="section">
@@ -104,41 +88,15 @@ export default function Dashboard() {
         </div>
 
         {filtered.length === 0 ? (
-          <div className="empty-state">
-            <div className="empty-icon">✓</div>
-            <div className="empty-title">No tasks here</div>
-            <div className="empty-desc">Tasks assigned to you will appear here.</div>
-          </div>
+          <EmptyState icon="✓" title="No tasks here" description="Tasks assigned to you will appear here." />
         ) : (
           <div className="tasks-list">
             {filtered.map((task) => (
-              <div key={task._id} className="task-card">
-                <div className="task-card-left">
-                  <div className="task-title">{task.title}</div>
-                  <div className="task-meta">
-                    <span className="task-project">
-                      📁 <Link to={`/projects/${task.project?._id}`} style={{ color: 'var(--accent)', textDecoration: 'none' }}>
-                        {task.project?.name}
-                      </Link>
-                    </span>
-                    {task.dueDate && (
-                      <span className={`task-due${isOverdue(task.dueDate, task.status) ? ' overdue' : ''}`}>
-                        <Calendar size={12} /> {new Date(task.dueDate).toLocaleDateString()}
-                        {isOverdue(task.dueDate, task.status) && ' · Overdue'}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <div className="task-card-right">
-                  <span className={`status-badge ${priorityClass[task.priority]}`}>{task.priority}</span>
-                  <select className="status-select" value={task.status}
-                    onChange={(e) => handleStatusChange(task._id, e.target.value)}>
-                    <option>To Do</option>
-                    <option>In Progress</option>
-                    <option>Done</option>
-                  </select>
-                </div>
-              </div>
+              <TaskCard 
+                key={task._id} 
+                task={task} 
+                onStatusChange={handleStatusChange} 
+              />
             ))}
           </div>
         )}
@@ -152,18 +110,11 @@ export default function Dashboard() {
           </div>
           <div className="projects-grid">
             {projects.slice(0, 3).map((project) => (
-              <Link key={project._id} to={`/projects/${project._id}`} className="project-card">
-                <div className="project-name">{project.name}</div>
-                <div className="project-desc">{project.description || 'No description'}</div>
-                <div className="project-footer">
-                  <div className="project-members">
-                    {project.members?.slice(0, 4).map((m) => (
-                      <div key={m._id} className="member-avatar" title={m.name}>{m.name?.[0]?.toUpperCase()}</div>
-                    ))}
-                  </div>
-                  <span className={`status-badge status-${project.status?.toLowerCase().replace(' ', '')}`}>{project.status}</span>
-                </div>
-              </Link>
+              <ProjectCard 
+                key={project._id} 
+                project={project} 
+                userRole={user?.role} 
+              />
             ))}
           </div>
         </div>

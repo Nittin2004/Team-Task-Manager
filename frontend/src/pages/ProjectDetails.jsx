@@ -1,17 +1,13 @@
 import { useEffect, useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { Plus, X, ArrowLeft, Calendar, User } from 'lucide-react';
+import { Plus, ArrowLeft, User } from 'lucide-react';
 import API from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 import toast from 'react-hot-toast';
-
-const priorityClass = { High: 'priority-high', Medium: 'priority-medium', Low: 'priority-low' };
-
-function statusColClass(s) {
-  if (s === 'To Do') return 'status-todo';
-  if (s === 'In Progress') return 'status-progress';
-  return 'status-done';
-}
+import Badge from '../components/Badge';
+import TaskCard from '../components/TaskCard';
+import Modal from '../components/Modal';
+import EmptyState from '../components/EmptyState';
 
 const COLS = ['To Do', 'In Progress', 'Done'];
 
@@ -102,7 +98,7 @@ export default function ProjectDetails() {
   const isOverdue = (due, status) => due && status !== 'Done' && new Date(due) < new Date();
 
   if (loading) return <div className="page-loader"><div className="spinner" /></div>;
-  if (!project) return <div className="main-content"><p>Project not found.</p></div>;
+  if (!project) return <div className="main-content"><EmptyState title="Not Found" description="Project not found." icon="❓" /></div>;
 
   return (
     <div className="main-content fade-up">
@@ -115,14 +111,13 @@ export default function ProjectDetails() {
           {project.description && <p className="page-subtitle">{project.description}</p>}
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-          <span className={`status-badge status-${project.status?.toLowerCase().replace(' ', '')}`}>{project.status}</span>
+          <Badge variant={project.status}>{project.status}</Badge>
           {user?.role === 'Admin' && (
             <button className="btn btn-primary" onClick={openCreate}><Plus size={16} /> Add Task</button>
           )}
         </div>
       </div>
 
-      {/* Members Row */}
       <div className="card" style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
           <span style={{ fontSize: 13, color: 'var(--text-secondary)', fontWeight: 600 }}>Team:</span>
@@ -130,13 +125,12 @@ export default function ProjectDetails() {
             <div key={m._id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'var(--bg-secondary)', borderRadius: 20, padding: '4px 12px 4px 6px', border: '1px solid var(--border)' }}>
               <div className="nav-avatar" style={{ width: 26, height: 26, fontSize: 11 }}>{m.name[0]}</div>
               <span style={{ fontSize: 13 }}>{m.name}</span>
-              <span className={`nav-badge ${m.role === 'Admin' ? 'badge-admin' : 'badge-member'}`}>{m.role}</span>
+              <Badge variant={m.role}>{m.role}</Badge>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Kanban Board */}
       <div className="kanban-board">
         {COLS.map((col) => {
           const colTasks = tasks.filter((t) => t.status === col);
@@ -144,7 +138,7 @@ export default function ProjectDetails() {
             <div key={col} className="kanban-col">
               <div className="kanban-col-header">
                 <span className="kanban-col-title">
-                  <span className={`status-badge ${statusColClass(col)}`} style={{ fontSize: 11 }}>{col}</span>
+                  <Badge variant={col} style={{ fontSize: 11 }}>{col}</Badge>
                 </span>
                 <span className="kanban-count">{colTasks.length}</span>
               </div>
@@ -153,26 +147,12 @@ export default function ProjectDetails() {
                   <div style={{ textAlign: 'center', padding: '24px 0', color: 'var(--text-muted)', fontSize: 13 }}>No tasks</div>
                 )}
                 {colTasks.map((task) => (
-                  <div key={task._id} className="kanban-task" onClick={() => setSelectedTask(task)}>
-                    <div className="kanban-task-title">{task.title}</div>
-                    {task.description && (
-                      <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 10, display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>{task.description}</p>
-                    )}
-                    <div className="kanban-task-footer">
-                      <span className={`status-badge ${priorityClass[task.priority]}`} style={{ fontSize: 11 }}>{task.priority}</span>
-                      {task.assignee ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                          <div className="nav-avatar" style={{ width: 22, height: 22, fontSize: 10 }}>{task.assignee.name[0]}</div>
-                          <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{task.assignee.name.split(' ')[0]}</span>
-                        </div>
-                      ) : <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Unassigned</span>}
-                    </div>
-                    {task.dueDate && (
-                      <div style={{ marginTop: 8, fontSize: 11, color: isOverdue(task.dueDate, task.status) ? 'var(--red)' : 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <Calendar size={10} /> {new Date(task.dueDate).toLocaleDateString()}{isOverdue(task.dueDate, task.status) ? ' · Overdue' : ''}
-                      </div>
-                    )}
-                  </div>
+                  <TaskCard 
+                    key={task._id} 
+                    task={task} 
+                    isKanban={true} 
+                    onClick={() => setSelectedTask(task)} 
+                  />
                 ))}
               </div>
             </div>
@@ -180,14 +160,10 @@ export default function ProjectDetails() {
         })}
       </div>
 
-      {/* Task Detail Drawer */}
-      {selectedTask && (
-        <div className="modal-overlay" onClick={() => setSelectedTask(null)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2 className="modal-title" style={{ fontSize: 17 }}>{selectedTask.title}</h2>
-              <button className="modal-close" onClick={() => setSelectedTask(null)}><X size={20} /></button>
-            </div>
+      {/* Task Detail Modal */}
+      <Modal isOpen={!!selectedTask} onClose={() => setSelectedTask(null)} title={selectedTask?.title}>
+        {selectedTask && (
+          <>
             {selectedTask.description && <p style={{ color: 'var(--text-secondary)', fontSize: 14, marginBottom: 20 }}>{selectedTask.description}</p>}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -199,7 +175,7 @@ export default function ProjectDetails() {
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ fontSize: 13, color: 'var(--text-secondary)', width: 90 }}>Priority</span>
-                <span className={`status-badge ${priorityClass[selectedTask.priority]}`}>{selectedTask.priority}</span>
+                <Badge variant={selectedTask.priority}>{selectedTask.priority}</Badge>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ fontSize: 13, color: 'var(--text-secondary)', width: 90 }}>Assignee</span>
@@ -218,64 +194,56 @@ export default function ProjectDetails() {
                 <button className="btn btn-secondary btn-sm" onClick={() => openEdit(selectedTask)}>Edit</button>
               </div>
             )}
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
 
       {/* Create/Edit Task Modal */}
-      {showModal && (
-        <div className="modal-overlay" onClick={() => setShowModal(false)}>
-          <div className="modal" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2 className="modal-title">{editTask ? 'Edit Task' : 'New Task'}</h2>
-              <button className="modal-close" onClick={() => setShowModal(false)}><X size={20} /></button>
-            </div>
-            <form onSubmit={submit}>
-              <div className="form-group">
-                <label className="form-label">Title *</label>
-                <input className="form-input" placeholder="Task title" value={taskForm.title}
-                  onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })} required />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Description</label>
-                <textarea className="form-input" placeholder="Task details..." value={taskForm.description}
-                  onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })} />
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                <div className="form-group">
-                  <label className="form-label">Status</label>
-                  <select className="form-select" value={taskForm.status} onChange={(e) => setTaskForm({ ...taskForm, status: e.target.value })}>
-                    <option>To Do</option><option>In Progress</option><option>Done</option>
-                  </select>
-                </div>
-                <div className="form-group">
-                  <label className="form-label">Priority</label>
-                  <select className="form-select" value={taskForm.priority} onChange={(e) => setTaskForm({ ...taskForm, priority: e.target.value })}>
-                    <option>Low</option><option>Medium</option><option>High</option>
-                  </select>
-                </div>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Assign To</label>
-                <select className="form-select" value={taskForm.assignee} onChange={(e) => setTaskForm({ ...taskForm, assignee: e.target.value })}>
-                  <option value="">Unassigned</option>
-                  {members.map((m) => <option key={m._id} value={m._id}>{m.name} ({m.role})</option>)}
-                </select>
-              </div>
-              <div className="form-group">
-                <label className="form-label">Due Date</label>
-                <input type="date" className="form-input" value={taskForm.dueDate}
-                  onChange={(e) => setTaskForm({ ...taskForm, dueDate: e.target.value })}
-                  style={{ colorScheme: 'dark' }} />
-              </div>
-              <div className="modal-actions">
-                <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
-                <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving...' : editTask ? 'Update Task' : 'Create Task'}</button>
-              </div>
-            </form>
+      <Modal isOpen={showModal} onClose={() => setShowModal(false)} title={editTask ? 'Edit Task' : 'New Task'}>
+        <form onSubmit={submit}>
+          <div className="form-group">
+            <label className="form-label">Title *</label>
+            <input className="form-input" placeholder="Task title" value={taskForm.title}
+              onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })} required />
           </div>
-        </div>
-      )}
+          <div className="form-group">
+            <label className="form-label">Description</label>
+            <textarea className="form-input" placeholder="Task details..." value={taskForm.description}
+              onChange={(e) => setTaskForm({ ...taskForm, description: e.target.value })} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+            <div className="form-group">
+              <label className="form-label">Status</label>
+              <select className="form-select" value={taskForm.status} onChange={(e) => setTaskForm({ ...taskForm, status: e.target.value })}>
+                <option>To Do</option><option>In Progress</option><option>Done</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Priority</label>
+              <select className="form-select" value={taskForm.priority} onChange={(e) => setTaskForm({ ...taskForm, priority: e.target.value })}>
+                <option>Low</option><option>Medium</option><option>High</option>
+              </select>
+            </div>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Assign To</label>
+            <select className="form-select" value={taskForm.assignee} onChange={(e) => setTaskForm({ ...taskForm, assignee: e.target.value })}>
+              <option value="">Unassigned</option>
+              {members.map((m) => <option key={m._id} value={m._id}>{m.name} ({m.role})</option>)}
+            </select>
+          </div>
+          <div className="form-group">
+            <label className="form-label">Due Date</label>
+            <input type="date" className="form-input" value={taskForm.dueDate}
+              onChange={(e) => setTaskForm({ ...taskForm, dueDate: e.target.value })}
+              style={{ colorScheme: 'dark' }} />
+          </div>
+          <div className="modal-actions">
+            <button type="button" className="btn btn-secondary" onClick={() => setShowModal(false)}>Cancel</button>
+            <button type="submit" className="btn btn-primary" disabled={saving}>{saving ? 'Saving...' : editTask ? 'Update Task' : 'Create Task'}</button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 }

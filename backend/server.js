@@ -25,24 +25,46 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
-// Serve frontend in production
-if (process.env.NODE_ENV === 'production') {
+// Serve frontend in production (Only if NOT on Vercel)
+if (process.env.NODE_ENV === 'production' && !process.env.VERCEL) {
   app.use(express.static(path.join(__dirname, '../frontend/dist')));
   app.get('*', (req, res) => {
     res.sendFile(path.join(__dirname, '../frontend/dist/index.html'));
   });
 }
 
-// Connect to MongoDB and start server
-const PORT = process.env.PORT || 5000;
-
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => {
+// Connect to MongoDB
+const connectDB = async () => {
+  if (mongoose.connection.readyState >= 1) return;
+  try {
+    await mongoose.connect(process.env.MONGO_URI);
     console.log('Connected to MongoDB');
-    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-  })
-  .catch((err) => {
+  } catch (err) {
     console.error('MongoDB connection error:', err.message);
-    process.exit(1);
+    // In serverless, we might not want to exit the process, but for local it's fine
+    if (process.env.NODE_ENV !== 'production' && !process.env.VERCEL) {
+      process.exit(1);
+    }
+    throw err;
+  }
+};
+
+// Middleware to ensure DB connection (especially for serverless)
+app.use(async (req, res, next) => {
+  try {
+    await connectDB();
+    next();
+  } catch (err) {
+    res.status(500).json({ error: 'Database connection failed' });
+  }
+});
+
+// Start server if not in a serverless environment
+if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+  const PORT = process.env.PORT || 5000;
+  connectDB().then(() => {
+    app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
   });
+}
+
+module.exports = app;
