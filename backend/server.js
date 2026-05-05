@@ -37,7 +37,10 @@ if (process.env.NODE_ENV === 'production' && !process.env.VERCEL) {
 const connectDB = async () => {
   if (mongoose.connection.readyState >= 1) return;
   try {
-    await mongoose.connect(process.env.MONGO_URI);
+    console.log('Connecting to MongoDB...');
+    await mongoose.connect(process.env.MONGO_URI, {
+      serverSelectionTimeoutMS: 5000, // Timeout after 5 seconds
+    });
     console.log('Connected to MongoDB');
   } catch (err) {
     console.error('MongoDB connection error:', err.message);
@@ -55,7 +58,8 @@ app.use(async (req, res, next) => {
     await connectDB();
     next();
   } catch (err) {
-    res.status(500).json({ error: 'Database connection failed' });
+    console.error('DATABASE_MIDDLEWARE_ERROR:', err.message);
+    res.status(500).json({ error: 'Database connection failed', details: err.message });
   }
 });
 
