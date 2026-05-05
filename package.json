@@ -2,7 +2,7 @@
   "name": "taskflow",
   "version": "1.0.0",
   "description": "TaskFlow - Project Management App",
-  "main": "api/index.js",
+  "main": "backend/api/index.js",
   "scripts": {
     "start": "node backend/server.js",
     "dev:backend": "cd backend && npm run dev",
